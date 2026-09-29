@@ -1,0 +1,27 @@
+name: Test image patches
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  precision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned upstream
+        id: upstream
+        run: sed -n 's/^ARG ACESTEP_UPSTREAM_REF=/ref=/p' Dockerfile >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: ace-step/ACE-Step-1.5
+          ref: ${{ steps.upstream.outputs.ref }}
+          path: upstream
+      - name: Check VAE precision through CPU offload
+        env:
+          ACESTEP_UPSTREAM_DIR: upstream
+        run: python3 -m unittest discover -s tests

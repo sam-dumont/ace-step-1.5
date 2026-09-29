@@ -192,6 +192,30 @@ curl -o output.mp3 "$API$FILE_URL"
 | `ACESTEP_API_PORT` | `8000` | Server port |
 | `ACESTEP_INIT_LLM` | `true` | Set to `false` to disable LM entirely |
 
+## VAE precision on older NVIDIA cards
+
+The pinned upstream selects FP16 for the VAE on cards without BF16 support. On a Turing GPU,
+a controlled five-second decode produced 0 finite samples out of 480,000 with FP16; the same
+latents produced 480,000 finite samples with FP32. This can turn a completed generation into
+silent audio even when the diffusion latents are valid.
+
+The image applies `patches/vae-float32.patch` before installing ACE-Step. It keeps the VAE in
+FP32 on those cards, including every CPU offload/reload. The diffusion model keeps its existing
+precision. BF16-capable NVIDIA, ROCm, CPU and Mac selection stay as upstream defines them.
+There is no extra environment variable to set. `ACESTEP_DTYPE` is not read by this upstream
+VAE selector; casting the model once is also insufficient because offloading casts it again.
+
+Build and deploy a new image digest to pick up the fix. An existing Terraform deployment pinned
+to an older digest keeps the old behavior until its image reference changes.
+
+To check the patch against an upstream checkout without downloading models:
+
+```bash
+ACESTEP_UPSTREAM_DIR=/path/to/ACE-Step-1.5 python3 -m unittest discover -s tests
+```
+
+The image build fails if the patch no longer applies after an upstream bump.
+
 ## License
 
 See the [ACE-Step 1.5 repository](https://github.com/ace-step/ACE-Step-1.5) for license information.

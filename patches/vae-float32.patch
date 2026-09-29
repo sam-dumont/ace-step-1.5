@@ -1,0 +1,13 @@
+--- a/acestep/core/generation/handler/memory_utils.py
++++ b/acestep/core/generation/handler/memory_utils.py
+@@ -206,7 +206,9 @@
+                 return getattr(self, "dtype", torch.float32)
+             if cuda_supports_bfloat16(_cuda_device_index(target_device)):
+                 return torch.bfloat16
+-            return torch.float16
++            # Oobleck decode overflows in FP16 on pre-Ampere NVIDIA GPUs.
++            # This selector also runs after CPU offload, so keep the VAE FP32.
++            return torch.float32
+         if target_device == "xpu":
+             return torch.bfloat16
+         if target_device == "mps":
