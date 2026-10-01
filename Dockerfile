@@ -116,12 +116,15 @@ ENV PATH="/root/.local/bin:$PATH"
 # rebuilds are reproducible and staleness has to be an explicit bump here,
 # not something that silently drifts until someone notices.
 COPY patches/vae-float32.patch /tmp/vae-float32.patch
+COPY patches/input-conv-native.patch /tmp/input-conv-native.patch
 ARG ACESTEP_UPSTREAM_REF=ca1e85fe9430179831e6bc6be790c332190a3866
 RUN git clone https://github.com/ace-step/ACE-Step-1.5.git /app && \
     cd /app && git checkout "$ACESTEP_UPSTREAM_REF" && cd / && \
     git -C /app apply --check /tmp/vae-float32.patch && \
     git -C /app apply /tmp/vae-float32.patch && \
-    rm -rf /app/.git /tmp/vae-float32.patch && \
+    git -C /app apply --check /tmp/input-conv-native.patch && \
+    git -C /app apply /tmp/input-conv-native.patch && \
+    rm -rf /app/.git /tmp/vae-float32.patch /tmp/input-conv-native.patch && \
     uv pip install --system --no-cache /app
 
 # Create symlink so ACE-Step's model discovery finds /app/checkpoints
