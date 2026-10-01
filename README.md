@@ -202,6 +202,7 @@ silent audio even when the diffusion latents are valid.
 The image applies `patches/vae-float32.patch` before installing ACE-Step. It keeps the VAE in
 FP32 on those cards, including every CPU offload/reload. The diffusion model keeps its existing
 precision. BF16-capable NVIDIA, ROCm, CPU and Mac selection stay as upstream defines them.
+
 There is no extra environment variable to set. `ACESTEP_DTYPE` is not read by this upstream
 VAE selector; casting the model once is also insufficient because offloading casts it again.
 
@@ -215,6 +216,18 @@ ACESTEP_UPSTREAM_DIR=/path/to/ACE-Step-1.5 python3 -m unittest discover -s tests
 ```
 
 The image build fails if the patch no longer applies after an upstream bump.
+
+### 120-second generation on T1000
+
+The T1000 can produce NaNs in cuDNN's FP16 input convolution at 3,000 latent
+frames (120 seconds). The same finite weights and input work with native FP16
+convolution; the accepted 88-second control also works with cuDNN.
+
+`patches/input-conv-native.patch` bypasses cuDNN only for the DiT input projection
+on NVIDIA cards without native BF16 support. It keeps FP16 weights, CPU offload
+and the existing FP32 VAE patch. The cuDNN context restores its previous settings
+after the projection, including when it raises. ACE's API runs one generation
+job at a time; the cuDNN setting is process-wide during that short call.
 
 ## License
 

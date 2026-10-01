@@ -1,0 +1,46 @@
+--- a/acestep/core/generation/handler/init_service_loader.py
++++ b/acestep/core/generation/handler/init_service_loader.py
+@@ -31,6 +31,35 @@
+                 exc,
+             )
+             return False
++
++    def _apply_pre_ampere_input_conv_workaround(self) -> None:
++        """Avoid the shape-dependent cuDNN FP16 input-projection NaNs on Turing."""
++        target_device = str(self.device)
++        if (target_device.split(":")[0] != "cuda"
++                or gpu_config.is_rocm_available()
++                or self.dtype != torch.float16):
++            return
++        device_index = int(target_device.partition(":")[2]) if ":" in target_device else None
++        if gpu_config.cuda_supports_bfloat16(device_index):
++            return
++        decoder = getattr(self.model, "decoder", None)
++        projection = getattr(decoder, "proj_in", None)
++        if projection is None or len(projection) < 2:
++            return
++        conv = projection[1]
++        if not isinstance(conv, torch.nn.Conv1d) or getattr(conv, "_acestep_native_conv1d", False):
++            return
++        original_forward = conv.forward
++
++        def native_forward(*args, **kwargs):
++            # Keep FP16 weights/activations; bypass only this convolution's cuDNN kernel.
++            # The context restores cuDNN even if the projection raises.
++            with torch.backends.cudnn.flags(enabled=False):
++                return original_forward(*args, **kwargs)
++
++        conv.forward = native_forward
++        conv._acestep_native_conv1d = True
++        logger.info("[initialize_service] Pre-Ampere FP16 input projection: using native Conv1d.")
+ 
+     def _apply_cuda_bool_argsort_workaround(self) -> None:
+         """Patch dynamic model helpers when bool argsort is unsupported on CUDA."""
+@@ -193,6 +222,7 @@
+         self.config = self.model.config
+         self._sync_alignment_config()
+         self._apply_cuda_bool_argsort_workaround()
++        self._apply_pre_ampere_input_conv_workaround()
+ 
+         if not self.offload_to_cpu:
+             self.model = self.model.to(device).to(self.dtype)
