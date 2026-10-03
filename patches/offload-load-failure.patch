@@ -1,0 +1,47 @@
+--- a/acestep/core/generation/handler/init_service_offload_context.py
++++ b/acestep/core/generation/handler/init_service_offload_context.py
+@@ -40,27 +40,27 @@
+         rss_before = self._get_rss_mb()
+         logger.info(f"[_load_model_context] Loading {model_name} to {self.device} (RSS: {rss_before:.0f} MB)")
+         start_time = time.time()
+-        if model_name == "vae":
+-            vae_dtype = self._get_vae_dtype()
+-            self._recursive_to_device(model, self.device, vae_dtype)
+-        else:
+-            self._recursive_to_device(model, self.device, self.dtype)
++        try:
++            if model_name == "vae":
++                vae_dtype = self._get_vae_dtype()
++                self._recursive_to_device(model, self.device, vae_dtype)
++            else:
++                self._recursive_to_device(model, self.device, self.dtype)
+ 
+-        if model_name == "model" and hasattr(self, "silence_latent"):
+-            self.silence_latent = self.silence_latent.to(self.device).to(self.dtype)
++            if model_name == "model" and hasattr(self, "silence_latent"):
++                self.silence_latent = self.silence_latent.to(self.device).to(self.dtype)
+ 
+-        load_time = time.time() - start_time
+-        self.current_offload_cost += load_time
++            load_time = time.time() - start_time
++            self.current_offload_cost += load_time
+ 
+-        # Free old CPU tensor storage after moving to GPU (not counted in load_time)
+-        self._release_system_memory()
+-        rss_after = self._get_rss_mb()
+-        logger.info(
+-            f"[_load_model_context] Loaded {model_name} to {self.device} in {load_time:.4f}s "
+-            f"(RSS: {rss_before:.0f} -> {rss_after:.0f} MB, delta: {rss_after - rss_before:+.0f} MB)"
+-        )
++            # Free old CPU tensor storage after moving to GPU (not counted in load_time)
++            self._release_system_memory()
++            rss_after = self._get_rss_mb()
++            logger.info(
++                f"[_load_model_context] Loaded {model_name} to {self.device} in {load_time:.4f}s "
++                f"(RSS: {rss_before:.0f} -> {rss_after:.0f} MB, delta: {rss_after - rss_before:+.0f} MB)"
++            )
+ 
+-        try:
+             yield
+         finally:
+             rss_before = self._get_rss_mb()

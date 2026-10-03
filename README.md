@@ -232,3 +232,19 @@ job at a time; the cuDNN setting is process-wide during that short call.
 ## License
 
 See the [ACE-Step 1.5 repository](https://github.com/ace-step/ACE-Step-1.5) for license information.
+
+## Recovering from a failed GPU load
+
+With CPU offload enabled, an allocation failure while moving model weights could leave the
+already-moved tensors on the GPU. The next request then started with less free VRAM. The
+image applies `patches/offload-load-failure.patch` before installation so the existing CPU
+offload cleanup also runs when loading fails, not only after generation starts. The original
+error still reaches the caller. Generation is not silently retried.
+
+This does not reserve VRAM against other applications or make an oversized request fit.
+GPU Operator time slicing does not provide memory isolation. Use the turbo model, allow CPU
+offload, and leave enough memory for the requested duration and any other workloads.
+
+The patch tests execute the pinned upstream context without model downloads. They cover
+partially loaded DiT, VAE and text-encoder weights, normal completion, generation failure,
+and a successful request after a failed load. Run the same test command shown above.

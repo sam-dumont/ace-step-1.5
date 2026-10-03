@@ -21,7 +21,7 @@ jobs:
           repository: ace-step/ACE-Step-1.5
           ref: ${{ steps.upstream.outputs.ref }}
           path: upstream
-      - name: Check image precision and convolution patches through CPU offload
+      - name: Check precision, convolution and failed-load recovery patches
         env:
           ACESTEP_UPSTREAM_DIR: upstream
         run: python3 -m unittest discover -s tests
