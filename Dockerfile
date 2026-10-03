@@ -117,6 +117,7 @@ ENV PATH="/root/.local/bin:$PATH"
 # not something that silently drifts until someone notices.
 COPY patches/vae-float32.patch /tmp/vae-float32.patch
 COPY patches/input-conv-native.patch /tmp/input-conv-native.patch
+COPY patches/offload-load-failure.patch /tmp/offload-load-failure.patch
 ARG ACESTEP_UPSTREAM_REF=ca1e85fe9430179831e6bc6be790c332190a3866
 RUN git clone https://github.com/ace-step/ACE-Step-1.5.git /app && \
     cd /app && git checkout "$ACESTEP_UPSTREAM_REF" && cd / && \
@@ -124,7 +125,9 @@ RUN git clone https://github.com/ace-step/ACE-Step-1.5.git /app && \
     git -C /app apply /tmp/vae-float32.patch && \
     git -C /app apply --check /tmp/input-conv-native.patch && \
     git -C /app apply /tmp/input-conv-native.patch && \
-    rm -rf /app/.git /tmp/vae-float32.patch /tmp/input-conv-native.patch && \
+    git -C /app apply --check /tmp/offload-load-failure.patch && \
+    git -C /app apply /tmp/offload-load-failure.patch && \
+    rm -rf /app/.git /tmp/vae-float32.patch /tmp/input-conv-native.patch /tmp/offload-load-failure.patch && \
     uv pip install --system --no-cache /app
 
 # Create symlink so ACE-Step's model discovery finds /app/checkpoints
